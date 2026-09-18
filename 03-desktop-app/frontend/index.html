@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RH Valoração</title>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#202124;background:#f5f6f8}
+*{box-sizing:border-box}body{margin:0}.wrap{max-width:1100px;margin:34px auto;padding:0 18px}.card{background:#fff;border:1px solid #e1e4e8;border-radius:18px;padding:30px;box-shadow:0 8px 28px rgba(0,0,0,.05)}
+h1{margin:0 0 7px;font-size:30px}.subtitle{margin:0;color:#646a73;line-height:1.5}.steps{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0}.step{font-size:13px;padding:7px 10px;border-radius:999px;background:#f0f1f3;color:#4e535a}
+.drop{border:2px dashed #adb3bb;border-radius:16px;padding:32px 22px;text-align:center;background:#fafbfc;transition:.15s}.drop.drag{border-color:#202124;background:#f0f1f3}.drop.busy{pointer-events:none;opacity:.65}.drop strong{font-size:17px}.hint{font-size:13px;color:#70757d;margin-top:8px}
+.actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:17px}button{border:1px solid #c9cdd2;background:#fff;padding:11px 17px;border-radius:10px;font-weight:650;cursor:pointer}button.primary{background:#202124;color:#fff;border-color:#202124}button:disabled{opacity:.45;cursor:not-allowed}
+#fileInput,#folderInput{display:none}.count{margin-top:18px;font-weight:650}.list{margin-top:12px;max-height:245px;overflow:auto;border-top:1px solid #eee}.row{display:flex;justify-content:space-between;gap:12px;padding:9px 2px;border-bottom:1px solid #eee;font-size:14px}.name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.type{color:#70757d;white-space:nowrap}
+.status{margin-top:22px;padding:16px;border-radius:12px;background:#f1f2f4;white-space:pre-wrap;line-height:1.5;display:none}.status.show{display:block}.status.error{background:#fff0f0}.status.ok{background:#f0f7f1}.status.busy{background:#f5f5f5}
+.summary{margin-top:18px;display:none}.summary h3{margin-bottom:10px}.meta{font-size:13px;color:#666;margin:0 0 12px}.table-wrap{overflow:auto;border:1px solid #eee;border-radius:10px}.summary table{width:100%;border-collapse:collapse;font-size:13px;min-width:760px}.summary th,.summary td{text-align:left;padding:9px;border-bottom:1px solid #eee}.summary th{background:#fafbfc}.download{display:inline-block;margin-top:14px;padding:11px 16px;border-radius:10px;background:#202124;color:#fff;text-decoration:none;font-weight:650}.download:hover{opacity:.9}.foot{margin-top:15px;font-size:12px;color:#777}
+@media(max-width:650px){.card{padding:20px}.row{display:block}.type{display:block;margin-top:3px}.wrap{margin-top:18px}}
+</style>
+</head>
+<body>
+<div class="wrap"><div class="card">
+<h1>RH Valoração</h1>
+<p class="subtitle">Atualize sua base de RH Valoração com uma ou várias folhas de pagamento.</p>
+<div class="steps"><span class="step">1. Excel-base</span><span class="step">2. PDFs</span><span class="step">3. Processar</span><span class="step">4. Conferir</span><span class="step">5. Baixar</span></div>
+
+<div id="drop" class="drop">
+  <strong>Arraste os arquivos para cá</strong>
+  <div class="hint">Aceitos: Excel (.xlsx/.xlsm), PDF e ZIP. Também é possível selecionar uma pasta.</div>
+  <div class="actions">
+    <button id="pickFiles" type="button">Selecionar arquivos</button>
+    <button id="pickFolder" type="button">Selecionar pasta</button>
+  </div>
+</div>
+<input id="fileInput" type="file" multiple accept=".xlsx,.xlsm,.pdf,.zip">
+<input id="folderInput" type="file" webkitdirectory directory multiple>
+
+<div id="count" class="count">Nenhum arquivo selecionado.</div>
+<div id="list" class="list"></div>
+<div class="actions" style="justify-content:flex-end"><button id="clear" type="button">Limpar</button><button id="process" class="primary" type="button" disabled>Processar</button></div>
+
+<div id="status" class="status"></div>
+<div id="summary" class="summary"></div>
+<div class="foot">Execução local: os arquivos permanecem no computador onde esta aplicação estiver rodando.</div>
+</div></div>
+<script>
+const drop=document.getElementById('drop'),fileInput=document.getElementById('fileInput'),folderInput=document.getElementById('folderInput');
+const count=document.getElementById('count'),list=document.getElementById('list'),processBtn=document.getElementById('process'),clearBtn=document.getElementById('clear');
+const statusBox=document.getElementById('status'),summary=document.getElementById('summary');
+let selected=[],busy=false;
+function addFiles(items,replace=false){const incoming=[...items];if(replace)selected=[];const keys=new Set(selected.map(f=>(f.webkitRelativePath||f.name)+'|'+f.size+'|'+f.lastModified));for(const f of incoming){const k=(f.webkitRelativePath||f.name)+'|'+f.size+'|'+f.lastModified;if(!keys.has(k)){selected.push(f);keys.add(k)}}render()}
+function render(){count.textContent=selected.length?`${selected.length} arquivo(s) selecionado(s).`:'Nenhum arquivo selecionado.';list.innerHTML=selected.map(f=>`<div class="row"><span class="name">${escapeHtml(f.webkitRelativePath||f.name)}</span><span class="type">${formatSize(f.size)}</span></div>`).join('');processBtn.disabled=!selected.length||busy;clearBtn.disabled=busy}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
+function formatSize(n){if(n<1024)return n+' B';if(n<1048576)return(n/1024).toFixed(1)+' KB';return(n/1048576).toFixed(1)+' MB'}
+function status(msg,kind=''){statusBox.textContent=msg;statusBox.className='status show '+kind}
+function setBusy(v){busy=v;drop.classList.toggle('busy',v);render()}
+fileInput.onchange=()=>addFiles(fileInput.files);folderInput.onchange=()=>addFiles(folderInput.files,true);
+document.getElementById('pickFiles').onclick=e=>{e.stopPropagation();fileInput.click()};document.getElementById('pickFolder').onclick=e=>{e.stopPropagation();folderInput.click()};
+drop.onclick=e=>{if(e.target.closest('button')||busy)return;fileInput.click()};
+drop.ondragover=e=>{e.preventDefault();if(!busy)drop.classList.add('drag')};drop.ondragleave=()=>drop.classList.remove('drag');drop.ondrop=e=>{e.preventDefault();drop.classList.remove('drag');if(!busy)addFiles(e.dataTransfer.files)};
+clearBtn.onclick=()=>{if(busy)return;selected=[];fileInput.value='';folderInput.value='';summary.style.display='none';statusBox.className='status';render()};
+processBtn.onclick=async()=>{if(!selected.length||busy)return;setBusy(true);status('Enviando arquivos...\nO processamento pode levar alguns minutos dependendo da quantidade de PDFs.','busy');summary.style.display='none';const fd=new FormData();selected.forEach(f=>fd.append('files',f,f.webkitRelativePath||f.name));try{status('Processando...\nAguarde até o diagnóstico aparecer.','busy');const r=await fetch('/processar',{method:'POST',body:fd});let data={};try{data=await r.json()}catch{}if(!r.ok)throw new Error(data.detail||'Falha no processamento.');status(`Processamento concluído.\n${data.entrada.quantidade_pdf} PDF(s) identificado(s).`,'ok');renderSummary(data)}catch(e){status('Não foi possível concluir.\n'+e.message,'error')}finally{setBusy(false)}};
+function renderSummary(data){summary.style.display='block';let html='<h3>Diagnóstico da execução</h3>';html+=`<p class="meta">Excel-base: ${escapeHtml((data.entrada.excel||[]).join(', '))} · ${data.entrada.quantidade_pdf||0} PDF(s)</p>`;html+='<div class="table-wrap"><table><thead><tr><th>Competência</th><th>Formato</th><th>Arquivo</th><th>Colaboradores</th><th>Encontrados</th><th>Não encontrados</th><th>Lançamentos</th><th>Total extraído</th></tr></thead><tbody>';for(const x of data.resumo||[]){html+=`<tr><td>${escapeHtml(x.competencia||'')}</td><td>${escapeHtml(x.formato||'')}</td><td>${escapeHtml(x.arquivo||'')}</td><td>${x.colaboradores_modelo??0}</td><td>${x.encontrados??0}</td><td>${x.nao_encontrados??0}</td><td>${x.lancamentos??0}</td><td>R$ ${Number(x.valor_total_extraido||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</td></tr>`}html+='</tbody></table></div>';const a=document.createElement('a');a.className='download';a.href=data.download_url;a.textContent='Baixar Excel atualizado';a.setAttribute('download','');summary.innerHTML=html;summary.appendChild(a)}
+render();
+</script>
+</body></html>
